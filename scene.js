@@ -1,0 +1,1 @@
+export { LabScene } from "./src/LabScene.js";
