@@ -129,64 +129,85 @@ export const LAB = {
   ceiling: {
     enabled: true,
     name: "CeilingRoot",
-
-    // kalau null → otomatis pakai LAB.room.wallHeight
     y: null,
-
-    // material
     color: 0xf7f7f7,
     roughness: 0.95,
     metalness: 0.0,
-
-    // shadow
     castShadow: false,
     receiveShadow: true,
-
-    // panel plafon utama & plafon backroom (dipisah)
-    main: {
+    main: { enabled: true, inset: -0.05 },
+    backRoom: { enabled: true, inset: -0.05 },
+  
+    lamps: {
       enabled: true,
-      inset: -0.05,
+      modelKey: "ceilingLamp",
+      parentName: "CeilingRoot",
+    
+      yOffset: -0.02,
+    
+      rows: 4,
+      cols: 3,
+      startX: -5.8,
+      startZ: -10.5,
+      spacingX: 5.8,
+      spacingZ: 6.5,
+    
+      rotation: [0, 0, 0],
+      scaleMul: [1, 1, 1],
+      emissive: {
+        enabled: true,
+        color: 0xffffff,
+        onIntensity: 1.5,
+        offIntensity: 0.05,
+      },
+  
+      light: {
+        enabled: true,
+        type: "spot",   
+        color: 0xffffff,
+        intensity: 2.0,  
+        distance: 18,
+        angle: Math.PI / 3,
+        penumbra: 0.5,
+        decay: 2,
+        castShadow: false, 
+        shadowMapSize: 1024,
+        zBias: -0.0005,
+      },
+    
+      defaultOn: true,
     },
 
-    backRoom: {
-      enabled: true,
-      inset: -0.05,
-    },
   },
 
   materials: {
-    wall:    { color: 0xf2f1ec, roughness: 0.95, metalness: 0.0 },
-    floor:   { color: 0xd2c8b6, roughness: 0.75, metalness: 0.0 },
+    wall:    { color: 0xE8E8E8, roughness: 0.95, metalness: 0.0 },
+    floor:   { color: 0xCCCCCC, roughness: 0.75, metalness: 0.0 },
     ceiling: { color: 0xffffff, roughness: 0.98, metalness: 0.0 },
   },
 
   render: {
-    bg: 0xf2f2f2,
+    bg: 0xa8a8a8,
     fogEnabled: false,
     fogNear: 50,
     fogFar: 200,
-    envIntensity: 0.25,
-    toneExposure: 0.85,
+    envIntensity: 0.10,
+    toneExposure: 0.65,
   },
 
   light: {
-    // jangan kebesaran, nanti shadow wash-out
-    ambientIntensity: 0.08,
+    ambientIntensity: 0.03,
   
-    // "matahari" dari kanan-depan (NE): +X (kanan), -Z (depan)
-    sunIntensity: 2.2,
-    sunPos: [18, 18, -18], // coba tweak kecil-kecil
+    sunIntensity: 1.2,
+    sunPos: [18, 14, -18],
   
-    // target diarahkan ke tengah ruangan (biar konsisten)
     targetY: 0.0,
   
-    // kualitas shadow
     shadowMapSize: 4096,
-    shadowRadius: 1,        // kecil = lebih tajam
+    shadowRadius: 1,  
     shadowBias: -0.0002,
     shadowNormalBias: 0.03,
   
-    // IMPORTANT: frustum shadow harus segede ruangan
     shadowFrustumPadding: 6,
     shadowNear: 1,
     shadowFar: 120,

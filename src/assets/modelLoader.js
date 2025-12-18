@@ -122,8 +122,11 @@ export async function loadAllModels() {
   const screenProjector = await safeLoadGLTF(gltf, "assets/screen_projector.glb", "screen_projector");
   if (screenProjector) screenProjector.scale.set(1, 1.15, 0.75);
 
+  const ceilingLamp = await safeLoadGLTF(gltf, "assets/ceiling_lamp.glb", "ceiling_lamp");
+  if (ceilingLamp) ceilingLamp.scale.set(1, 1, 1);
+
   return {
     fatal: false,
-    models: { glassDoor, leftWindow, rightWindow, meja, kursi, monitor, mouse, cpu, keyboard, ac, speaker, tv, mejaDosen, whiteboard, screenProjector },
+    models: { glassDoor, leftWindow, rightWindow, meja, kursi, monitor, mouse, cpu, keyboard, ac, speaker, tv, mejaDosen, whiteboard, screenProjector, ceilingLamp, },
   };
 }

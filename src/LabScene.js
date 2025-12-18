@@ -18,6 +18,8 @@ import {
   spawnRightWindows,
   spawnLeftWindows,
   spawnGlassDoorLeftBack,
+  spawnCeilingLamps,
+  setCeilingLampsOn,
 } from "./world/spawners.js";
 import { buildCeiling } from "./world/ceiling.js";
 import { loadAllModels } from "./assets/modelLoader.js";
@@ -53,6 +55,12 @@ export class LabScene {
     this.loadAndSpawn();
 
     this.animate();
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Digit1" || e.code === "Numpad1") setCeilingLampsOn(this.scene, true);
+      if (e.code === "Digit0" || e.code === "Numpad0") setCeilingLampsOn(this.scene, false);
+    });
+
   }
 
   async loadAndSpawn() {
@@ -95,6 +103,8 @@ export class LabScene {
     spawnTeacherDesk(this.scene, m.mejaDosen || m.meja);
     spawnWhiteboard(this.scene, m.whiteboard);
     spawnScreenProjector(this.scene, m.screenProjector);
+
+    spawnCeilingLamps(this.scene, m);
   }
 
   animate() {
