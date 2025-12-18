@@ -37,25 +37,6 @@ function setEmissiveIntensity(obj, intensity) {
   });
 }
 
-export function setCeilingLampsOn(scene, on) {
-  const st = scene.userData?.ceilingLamps;
-  if (!st) return;
-
-  st.on = !!on;
-
-  // toggle lights
-  for (const L of st.lights) {
-    L.visible = st.on;
-    // optional: kalau kamu prefer intensity 0:
-    // L.intensity = st.on ? L.userData._baseIntensity : 0;
-  }
-
-  // toggle emissive
-  for (const mesh of st.meshes) {
-    setEmissiveIntensity(mesh, st.on ? st.emissiveOn : st.emissiveOff);
-  }
-}
-
 function snapTopToLocalY(obj, targetLocalY = 0) {
   // pastikan bbox valid
   obj.updateMatrixWorld(true);
@@ -85,155 +66,141 @@ function applyEmissive(obj, emissiveCfg) {
   });
 }
 
+// ============================
+// CEILING LAMPS (REAL LIGHTS + TOGGLE)
+// ============================
 export function spawnCeilingLamps(scene, models) {
   const cfg = LAB.ceiling?.lamps;
   if (!cfg?.enabled) return;
 
-  const base = models?.[cfg.modelKey ?? "ceilingLamp"];
-  if (!base) return;
-
-  const rootName = cfg.parentName ?? (LAB.ceiling?.name || "CeilingRoot");
-  let root = scene.getObjectByName(rootName);
-  if (!root) {
-    root = new THREE.Group();
-    root.name = rootName;
-    root.position.set(0, LAB.room.wallHeight, 0);
-    scene.add(root);
+  const base = models?.[cfg.modelKey];
+  if (!base) {
+    console.warn("[CeilingLamps] model not found:", cfg.modelKey);
+    return;
   }
 
-  // bersihin spawn sebelumnya biar gak dobel saat reload
-  let container = root.getObjectByName("CeilingLampContainer");
-  if (!container) {
-    container = new THREE.Group();
-    container.name = "CeilingLampContainer";
-    root.add(container);
-  } else {
-    container.clear();
+  const parentName = cfg.parentName || LAB.ceiling?.name || "CeilingRoot";
+  const parent = scene.getObjectByName(parentName);
+  if (!parent) {
+    console.warn("[CeilingLamps] parent not found:", parentName);
+    return;
   }
 
-  const rows = Math.max(1, cfg.rows ?? 1);
-  const cols = Math.max(1, cfg.cols ?? 1);
+  // hapus lamp lama kalau ada
+  const old = parent.getObjectByName("__CeilingLampGroup");
+  if (old) old.removeFromParent();
 
-  const startX = cfg.startX ?? -5;
-  const startZ = cfg.startZ ?? -10;
-  const spacingX = cfg.spacingX ?? 5;
-  const spacingZ = cfg.spacingZ ?? 6;
+  const group = new THREE.Group();
+  group.name = "__CeilingLampGroup";
+  parent.add(group);
 
-  const rot = cfg.rotation ?? [0, 0, 0];
-  const scaleMul = cfg.scaleMul ?? [1, 1, 1];
-
-  // state disimpan di scene
-  const emissiveCfg = cfg.emissive ?? {};
-  const lightCfg = cfg.light ?? {};
-
-  const st = {
-    on: cfg.defaultOn !== false,
-    meshes: [],
+  const state = {
+    on: !!cfg.defaultOn,
     lights: [],
-    emissiveOn: emissiveCfg.onIntensity ?? 1.2,
-    emissiveOff: emissiveCfg.offIntensity ?? 0.05,
+    emissiveMats: [],
   };
-  scene.userData.ceilingLamps = st;
 
-  // set warna emissive sekali (intensity nanti di-toggle)
-  if (emissiveCfg.enabled) {
-    const col = new THREE.Color(emissiveCfg.color ?? 0xffffff);
-    base.traverse((n) => {
-      if (!n.isMesh) return;
-      const mats = Array.isArray(n.material) ? n.material : [n.material];
-      for (const m of mats) {
-        if (!m) continue;
-        if ("emissive" in m) m.emissive = col;
-        if ("emissiveIntensity" in m) m.emissiveIntensity = st.on ? st.emissiveOn : st.emissiveOff;
-      }
-    });
-  }
+  const eCfg = cfg.emissive || {};
+  const lCfg = cfg.light || {};
 
-  // util: snap TOP model ke Y=0 lokal (plafon)
-  function snapTopToLocalY(obj, targetLocalY = 0) {
-    obj.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(obj);
-    const maxY = box.max.y;
-    obj.position.y += (targetLocalY - maxY);
-    obj.updateMatrixWorld(true);
-  }
+  const eColor = new THREE.Color(eCfg.color ?? 0xffffff);
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
+  for (let r = 0; r < (cfg.rows ?? 1); r++) {
+    for (let c = 0; c < (cfg.cols ?? 1); c++) {
       const lamp = base.clone(true);
 
-      lamp.position.set(0, 0, 0);
-      lamp.rotation.set(rot[0] ?? 0, rot[1] ?? 0, rot[2] ?? 0);
-      lamp.scale.multiply(new THREE.Vector3(scaleMul[0] ?? 1, scaleMul[1] ?? 1, scaleMul[2] ?? 1));
+      // pos relatif ke CeilingRoot (CeilingRoot sudah di y plafon)
+      const x = (cfg.startX ?? 0) + c * (cfg.spacingX ?? 1);
+      const z = (cfg.startZ ?? 0) + r * (cfg.spacingZ ?? 1);
+      const y = (cfg.yOffset ?? -0.02);
 
-      snapTopToLocalY(lamp, 0);
-      lamp.position.y += (cfg.yOffset ?? -0.02);
+      lamp.position.set(x, y, z);
 
-      lamp.position.x += startX + c * spacingX;
-      lamp.position.z += startZ + r * spacingZ;
+      if (Array.isArray(cfg.rotation)) lamp.rotation.set(cfg.rotation[0], cfg.rotation[1], cfg.rotation[2]);
+      if (Array.isArray(cfg.scaleMul)) lamp.scale.multiply(new THREE.Vector3(cfg.scaleMul[0], cfg.scaleMul[1], cfg.scaleMul[2]));
 
-      lamp.traverse((n) => {
-        if (!n.isMesh) return;
-        n.castShadow = false;
-        n.receiveShadow = false;
-      });
-
-      container.add(lamp);
-      st.meshes.push(lamp);
-
-      // === Light source (SpotLight) ===
-      if (lightCfg.enabled) {
-        const type = (lightCfg.type ?? "spot").toLowerCase();
-
-        if (type === "spot") {
-          const spot = new THREE.SpotLight(
-            lightCfg.color ?? 0xffffff,
-            lightCfg.intensity ?? 2.0,
-            lightCfg.distance ?? 18,
-            lightCfg.angle ?? Math.PI / 3,
-            lightCfg.penumbra ?? 0.4,
-            lightCfg.decay ?? 2
-          );
-
-          spot.visible = st.on;
-          spot.castShadow = !!lightCfg.castShadow;
-          if (spot.castShadow) {
-            spot.shadow.mapSize.set(lightCfg.shadowMapSize ?? 1024, lightCfg.shadowMapSize ?? 1024);
-            spot.shadow.bias = lightCfg.zBias ?? -0.0005;
+      // emissive hanya untuk "nyala visual", bukan penerangan
+      if (eCfg.enabled) {
+        lamp.traverse((n) => {
+          if (!n.isMesh) return;
+          const mats = Array.isArray(n.material) ? n.material : [n.material];
+          for (const m of mats) {
+            if (!m || m.emissive === undefined) continue;
+            m.emissive = eColor;
+            m.emissiveIntensity = state.on ? (eCfg.onIntensity ?? 0.8) : (eCfg.offIntensity ?? 0.02);
+            m.needsUpdate = true;
+            state.emissiveMats.push(m);
           }
+        });
+      }
 
-          // pos: sedikit di bawah plafon (lokal)
-          spot.position.set(lamp.position.x, lamp.position.y - 0.02, lamp.position.z);
+      group.add(lamp);
 
-          // target: mengarah ke bawah
-          const tgt = new THREE.Object3D();
-          tgt.position.set(lamp.position.x, lamp.position.y - 3, lamp.position.z);
-          container.add(tgt);
-          spot.target = tgt;
+      // ✅ ini yang bikin ruangan beneran kena cahaya
+      if (lCfg.enabled) {
+        const spot = new THREE.SpotLight(
+          lCfg.color ?? 0xffffff,
+          state.on ? (lCfg.intensity ?? 0.25) : 0,   // IMPORTANT
+          lCfg.distance ?? 10,
+          lCfg.angle ?? (Math.PI / 4),
+          lCfg.penumbra ?? 0.7,
+          lCfg.decay ?? 2
+        );
 
-          container.add(spot);
-          st.lights.push(spot);
+        // posisi lampu cahaya sedikit di bawah plafon
+        spot.position.set(x, y - 0.03, z);
+
+        // arahkan ke bawah (ke lantai)
+        spot.target.position.set(x, -3, z);
+
+        spot.castShadow = !!lCfg.castShadow;
+        if (spot.castShadow) {
+          const ms = lCfg.shadowMapSize ?? 1024;
+          spot.shadow.mapSize.set(ms, ms);
+          spot.shadow.bias = lCfg.zBias ?? -0.0005;
         }
 
-        if (type === "point") {
-          const p = new THREE.PointLight(
-            lightCfg.color ?? 0xffffff,
-            lightCfg.intensity ?? 2.0,
-            lightCfg.distance ?? 18,
-            lightCfg.decay ?? 2
-          );
-          p.visible = st.on;
-          p.castShadow = !!lightCfg.castShadow;
-          p.position.set(lamp.position.x, lamp.position.y - 0.05, lamp.position.z);
-          container.add(p);
-          st.lights.push(p);
-        }
+        group.add(spot);
+        group.add(spot.target);
+        state.lights.push(spot);
       }
     }
   }
 
-  // pastikan kondisi awal sesuai defaultOn
-  setCeilingLampsOn(scene, st.on);
+  scene.userData.ceilingLamps = state;
+
+  // apply initial
+  setCeilingLampsOn(scene, state.on);
+}
+
+export function setCeilingLampsOn(scene, on) {
+  const cfg = LAB.ceiling?.lamps;
+  const st = scene.userData.ceilingLamps;
+  if (!cfg || !st) return;
+
+  st.on = !!on;
+
+  const eCfg = cfg.emissive || {};
+  const lCfg = cfg.light || {};
+
+  // emissive (visual)
+  for (const m of st.emissiveMats) {
+    m.emissiveIntensity = st.on ? (eCfg.onIntensity ?? 0.8) : (eCfg.offIntensity ?? 0.02);
+    m.needsUpdate = true;
+  }
+
+  // real lights
+  for (const L of st.lights) {
+    L.intensity = st.on ? (lCfg.intensity ?? 0.25) : 0;
+    L.visible = true;
+  }
+
+  // OPTIONAL: biar beda makin terasa, turunin ambient saat lamp off
+  const rig = scene.userData.lightRig;
+  if (rig) {
+    rig.ambient.intensity = st.on ? (LAB.light.ambientIntensity * 0.8) : (LAB.light.ambientIntensity * 0.4);
+    rig.sun.intensity = st.on ? (LAB.light.sunIntensity * 0.35) : LAB.light.sunIntensity;
+  }
 }
 
 /**

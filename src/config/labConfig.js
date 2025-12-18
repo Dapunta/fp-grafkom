@@ -157,15 +157,15 @@ export const LAB = {
       emissive: {
         enabled: true,
         color: 0xffffff,
-        onIntensity: 1.5,
-        offIntensity: 0.05,
+        onIntensity: 1.0,
+        offIntensity: 0.0,
       },
   
       light: {
         enabled: true,
         type: "spot",   
         color: 0xffffff,
-        intensity: 2.0,  
+        intensity: 35.0,  
         distance: 18,
         angle: Math.PI / 3,
         penumbra: 0.5,
@@ -175,7 +175,7 @@ export const LAB = {
         zBias: -0.0005,
       },
     
-      defaultOn: true,
+      defaultOn: false,
     },
 
   },
@@ -187,30 +187,18 @@ export const LAB = {
   },
 
   render: {
-    bg: 0xa8a8a8,
-    fogEnabled: false,
-    fogNear: 50,
-    fogFar: 200,
-    envIntensity: 0.10,
-    toneExposure: 0.65,
+    toneExposure: 0.25,
+    useEnvironment: true,
+    envIntensity: 0.0,
   },
 
   light: {
-    ambientIntensity: 0.03,
-  
-    sunIntensity: 1.2,
+    ambientIntensity: 0.02,
+    sunIntensity: 1.0,
     sunPos: [18, 14, -18],
-  
-    targetY: 0.0,
-  
     shadowMapSize: 4096,
-    shadowRadius: 1,  
     shadowBias: -0.0002,
     shadowNormalBias: 0.03,
-  
-    shadowFrustumPadding: 6,
-    shadowNear: 1,
-    shadowFar: 120,
   },
 
 };

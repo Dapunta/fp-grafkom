@@ -57,8 +57,15 @@ export class LabScene {
     this.animate();
 
     window.addEventListener("keydown", (e) => {
-      if (e.code === "Digit1" || e.code === "Numpad1") setCeilingLampsOn(this.scene, true);
-      if (e.code === "Digit0" || e.code === "Numpad0") setCeilingLampsOn(this.scene, false);
+      if (e.repeat) return;
+      if (e.key === "1") {
+        setCeilingLampsOn(this.scene, true);
+        console.log("[Lamp] ON");
+      }
+      if (e.key === "0") {
+        setCeilingLampsOn(this.scene, false);
+        console.log("[Lamp] OFF");
+      }
     });
 
   }
